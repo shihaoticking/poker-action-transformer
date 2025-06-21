@@ -1,60 +1,35 @@
 # Poker Action Transformer
 
-This project aims to build a Transformer-based neural network model that predicts the next action of a target player in a simplified Texas Hold'em poker game scenario. The model takes as input a combination of structured (card state) and sequential (betting history) information and outputs a classification among three possible actions: **Fold (F)**, **Check/Call (C)**, or **Raise (R)**.
+A PyTorch-based Transformer neural network that predicts the next action (Fold/Call/Raise) for a target player in Texas Hold'em poker games.
 
-## Problem Overview
+## Problem Statement
 
-The goal is to predict the **next action** of a target player given the current game state, which consists of:
+Given a poker game state, predict the optimal next action for a target player. The model takes three key inputs:
 
-- **Hole Cards**: Two face-down cards held by the player.
-- **Board Cards**: Shared community cards revealed progressively in the flop, turn, and river rounds.
-- **Betting History**: A sequence of player actions (F/C/R) across four betting rounds.
+- **Hole Cards**: Player's two face-down cards (e.g., `7h5c`, `3d4s`)
+- **Board Cards**: Community cards revealed in each round (e.g., `7dAcJh/2d/Td`)
+- **Bet History**: Sequence of actions across 4 betting rounds (e.g., `FFFRFC/CC/CC/CR`)
 
-## Input Encoding Strategy
+**Output**: One of three actions - **F** (Fold), **C** (Call/Check), or **R** (Raise)
 
-### Card Encoding
+## Architecture
 
-- All cards are represented as categorical tokens (52 real cards + 1 special token for "empty").
-- A total of **53 tokens** are used for card embedding.
-- Embeddings for cards are learned.
+### Model Design
+- **Transformer Encoder**: Multi-head attention mechanism for sequence modeling
+- **Input Encoding**: 
+  - 53 card tokens (52 cards + 1 empty token)
+  - 5 action tokens (F/C/R + separator + padding)
+  - 4 round tokens (preflop/flop/turn/river)
+- **Output**: 3-class classification (F/C/R)
 
-**Note**: Hole cards and flop cards have **no inherent order**. Turn, River, and betting sequences are **order-sensitive**.
+## Quick Start
 
-### Betting History
+### 1. Setup Environment
+```bash
+pip install -r requirements.txt
+```
 
-- Represented as a token sequence with possible values {F, C, R}.
-- Separated by round (Preflop / Flop / Turn / River).
-- Each action token is embedded.
-- Treated as a standard sequential input to the Transformer.
-
----
-
-## Label Definition
-
-Each training example corresponds to a decision point in the game:
-
-- **Input**: All game information *up to* the current point.
-- **Output**: The player's action at that point (`F`, `C`, or `R`).
-
-## Data Processing
-
-The project includes a complete data processing pipeline that converts raw PokerBench dataset files into a standardized format suitable for training.
-
-### Dataset Structure
-
-The processed dataset contains the following columns:
-- `round`: Game round (preflop, flop, turn, river)
-- `hole1`, `hole2`: Player's hole cards (e.g., "As", "Kd")
-- `flop1`, `flop2`, `flop3`: Community flop cards
-- `turn`: Turn card (or "empty" if not applicable)
-- `river`: River card (or "empty" if not applicable)
-- `action_sequence`: Betting history as F/C/R sequence
-- `player_action`: Target action to predict (F/C/R)
-
-### Running Data Preprocessing
-
-To process the raw datasets and generate train/test splits:
-
+### 2. Preprocess Data
 ```bash
 PYTHONPATH=. python3 scripts/preprocess_data.py \
     --preflop_input_path dataset/raw/preflop_1k_test_set_game_scenario_information.csv \
@@ -63,30 +38,47 @@ PYTHONPATH=. python3 scripts/preprocess_data.py \
     --output_test_path dataset/processed/test.csv
 ```
 
-This will:
-- Process both preflop and postflop datasets
-- Convert actions to standardized F/C/R format
-- Split data into 90% training and 10% test sets
-- Save processed files to `dataset/processed/`
+### 3. Train Model
+```bash
+PYTHONPATH=. python3 scripts/train_poker_model.py
+```
 
-### Data Sources
+## Project Structure
 
-The project uses the PokerBench dataset, which contains:
-- **Preflop data**: 1,000 test scenarios with optimal decisions
-- **Postflop data**: 10,000 test scenarios across flop, turn, and river rounds
+```
+poker-action-transformer/
+├── src/
+│   ├── models/poker_transformer.py    # Transformer model implementation
+│   ├── data/
+│   │   ├── poker_dataset.py          # Dataset class
+│   │   └── preprocessing.py          # Data preprocessing
+│   └── vocab/poker_vocab.py          # Vocabulary and encoding
+├── scripts/
+│   ├── train_poker_model.py          # Training script
+│   └── preprocess_data.py            # Data preprocessing script
+└── dataset/
+    ├── raw/                          # Original PokerBench data
+    └── processed/                    # Processed train/test splits
+```
 
-For detailed dataset information, see `dataset/README.md`.
+## Data Format
 
-## Project Status
+### Input Example
+```json
+{
+    "round": "river",
+    "hole1": "As",           # Ace of spades
+    "hole2": "Kh",           # King of hearts
+    "flop1": "7d",           # 7 of diamonds
+    "flop2": "Ac",           # Ace of clubs
+    "flop3": "Jh",           # Jack of hearts
+    "turn": "2d",            # 2 of diamonds
+    "river": "7h",           # 7 of hearts 
+    "action_sequence": "FFFRFC/CC/CC/CR"  # Betting history
+}
+```
 
-This repository is currently in the **implementation phase**. 
-
-### Completed
-- [x] Raw dataset integration
-- [x] Data processing pipeline
-
-### Planned
-- [ ] Transformer model architecture
-- [ ] Training pipeline
-- [ ] Model evaluation
-- [ ] Documentation
+### Output
+```python
+"R"  # Model predicts: Raise
+```
